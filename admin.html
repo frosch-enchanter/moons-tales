@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Dongeng Kita</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #F4F2FF;
+    --card: #FFFFFF;
+    --text: #2D1B69;
+    --muted: #7C6A9E;
+    --accent: #2D1B69;
+    --green: #6BCB77;
+    --red: #FF6B6B;
+    --yellow: #FFD93D;
+    --shadow: rgba(45,27,105,0.1);
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: 'Nunito', sans-serif; color: var(--text); min-height: 100vh; }
+
+  /* LOGIN */
+  .login-wrap {
+    min-height: 100vh; display: flex; align-items: center;
+    justify-content: center; padding: 2rem;
+    background: linear-gradient(135deg, #2D1B69 0%, #5C4DB1 100%);
+  }
+  .login-box {
+    background: #fff; border-radius: 24px;
+    padding: 2.5rem 2rem; width: 100%; max-width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    animation: popIn 0.4s ease;
+  }
+  @keyframes popIn { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+  .login-logo { text-align: center; margin-bottom: 1.5rem; }
+  .login-logo span { font-size: 3rem; }
+  .login-logo h1 { font-family: 'Baloo 2', cursive; font-size: 1.5rem; font-weight: 800; color: var(--text); }
+  .login-logo p { font-size: 0.85rem; color: var(--muted); }
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 5px; color: var(--text); }
+  .field input {
+    width: 100%; padding: 11px 14px; border: 2px solid rgba(45,27,105,0.15);
+    border-radius: 12px; font-family: 'Nunito', sans-serif;
+    font-size: 0.95rem; outline: none; transition: border-color 0.2s; color: var(--text);
+  }
+  .field input:focus { border-color: var(--accent); }
+  .login-btn {
+    width: 100%; padding: 12px; background: var(--accent); color: #fff;
+    border: none; border-radius: 12px; font-family: 'Baloo 2', cursive;
+    font-weight: 700; font-size: 1rem; cursor: pointer;
+    transition: opacity 0.2s; margin-top: 0.5rem;
+  }
+  .login-btn:hover { opacity: 0.9; }
+  .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .err-msg { color: var(--red); font-size: 0.85rem; margin-top: 8px; text-align: center; }
+
+  /* DASHBOARD */
+  #dashboard { display: none; }
+  .topbar {
+    background: var(--accent); padding: 0 2rem;
+    height: 60px; display: flex; align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 20px rgba(45,27,105,0.3);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar-logo { font-family: 'Baloo 2', cursive; font-size: 1.3rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+  .topbar-user { font-size: 0.85rem; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 12px; }
+  .topbar-user strong { color: #fff; }
+  .logout-btn {
+    background: rgba(255,255,255,0.15); border: none; color: #fff;
+    padding: 5px 14px; border-radius: 50px; font-family: 'Nunito', sans-serif;
+    font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: background 0.2s;
+  }
+  .logout-btn:hover { background: rgba(255,255,255,0.25); }
+
+  .main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 2rem; }
+  .stat-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 1.25rem 1.5rem; box-shadow: 0 2px 12px var(--shadow);
+  }
+  .stat-card .num { font-family: 'Baloo 2', cursive; font-size: 2rem; font-weight: 800; color: var(--text); }
+  .stat-card .lbl { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+  .stat-card .ico { font-size: 1.5rem; margin-bottom: 6px; }
+
+  .panel { background: var(--card); border-radius: var(--radius); box-shadow: 0 2px 12px var(--shadow); overflow: hidden; margin-bottom: 2rem; }
+  .panel-header {
+    padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(45,27,105,0.08);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-title { font-family: 'Baloo 2', cursive; font-size: 1.1rem; font-weight: 700; }
+  .add-btn {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 50px; padding: 8px 18px;
+    font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.85rem;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .add-btn:hover { opacity: 0.85; }
+  .panel-body { padding: 1.5rem; }
+
+  /* TABLE */
+  .story-table { width: 100%; border-collapse: collapse; }
+  .story-table th {
+    text-align: left; font-size: 0.8rem; font-weight: 700;
+    color: var(--muted); padding: 8px 12px;
+    border-bottom: 1px solid rgba(45,27,105,0.08);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .story-table td { padding: 12px 12px; font-size: 0.9rem; border-bottom: 1px solid rgba(45,27,105,0.05); vertical-align: middle; }
+  .story-table tr:last-child td { border-bottom: none; }
+  .story-table tr:hover td { background: #F9F8FF; }
+  .cover-cell { font-size: 1.8rem; text-align: center; width: 50px; }
+  .badge-cat {
+    font-size: 0.72rem; font-weight: 700; padding: 3px 10px;
+    border-radius: 50px; display: inline-block;
+  }
+  .file-pill {
+    font-size: 0.75rem; padding: 3px 10px; border-radius: 50px;
+    font-weight: 700;
+  }
+  .has-file { background: #E8FBF0; color: #1A7A4A; }
+  .no-file { background: #FFF0E6; color: #A04000; }
+  .action-btns { display: flex; gap: 6px; }
+  .btn-edit, .btn-del {
+    border: none; border-radius: 8px; padding: 5px 12px;
+    font-family: 'Nunito', sans-serif; font-weight: 700;
+    font-size: 0.78rem; cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-edit { background: #EEF5FF; color: #185FA5; }
+  .btn-del { background: #FFF0F0; color: #A32D2D; }
+  .btn-edit:hover, .btn-del:hover { opacity: 0.8; }
+
+  /* USER TABLE */
+  .user-table { width: 100%; border-collapse: collapse; }
+  .user-table th { text-align: left; font-size: 0.8rem; font-weight: 700; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid rgba(45,27,105,0.08); text-transform: uppercase; letter-spacing: 0.05em; }
+  .user-table td { padding: 12px 12px; font-size: 0.88rem; border-bottom: 1px solid rgba(45,27,105,0.05); }
+  .user-table tr:last-child td { border-bottom: none; }
+  .role-badge { font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 50px; }
+  .role-admin { background: #EEEDFE; color: #3C3489; }
+  .role-editor { background: #E1F5EE; color: #085041; }
+
+  /* MODAL */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200; align-items: center; justify-content: center; padding: 1rem; backdrop-filter: blur(4px); }
+  .overlay.open { display: flex; }
+  .modal { background: var(--card); border-radius: 24px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.25); animation: popIn 0.3s ease; }
+  .modal-hdr { background: var(--accent); padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; border-radius: 24px 24px 0 0; position: sticky; top: 0; }
+  .modal-hdr h2 { font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 1.1rem; color: #fff; }
+  .modal-close { background: rgba(255,255,255,0.15); border: none; color: #fff; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; }
+  .modal-body { padding: 1.5rem; }
+  .form-group { margin-bottom: 1rem; }
+  .form-group label { display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 5px; color: var(--text); }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 10px 14px; border: 2px solid rgba(45,27,105,0.15);
+    border-radius: 10px; font-family: 'Nunito', sans-serif; font-size: 0.9rem;
+    color: var(--text); outline: none; transition: border-color 0.2s; background: #FAFAFA;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+  .form-group textarea { resize: vertical; min-height: 70px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .emoji-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; margin-top: 6px; }
+  .emoji-opt { font-size: 1.4rem; text-align: center; padding: 4px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; }
+  .emoji-opt:hover { background: #F0EEFF; }
+  .emoji-opt.picked { border-color: var(--accent); background: #EEEDFE; }
+  .upload-area {
+    border: 2.5px dashed rgba(45,27,105,0.2); border-radius: 12px;
+    padding: 1.25rem; text-align: center; cursor: pointer;
+    transition: all 0.2s; background: #FAFAFA;
+  }
+  .upload-area:hover { border-color: var(--accent); background: #F0EEFF; }
+  .upload-area.dragover { border-color: var(--green); background: #F0FBF0; }
+  .upload-area .uico { font-size: 2rem; margin-bottom: 6px; }
+  .upload-area p { font-size: 0.83rem; color: var(--muted); }
+  .upload-area p strong { color: var(--text); }
+  .file-nm { margin-top: 6px; font-size: 0.8rem; color: var(--green); font-weight: 700; }
+  .submit-btn { width: 100%; padding: 12px; border: none; border-radius: 12px; background: var(--accent); color: #fff; font-family: 'Baloo 2', cursive; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 0.5rem; transition: opacity 0.2s; }
+  .submit-btn:hover { opacity: 0.9; }
+  .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .toast {
+    position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+    background: #2D1B69; color: #fff; padding: 10px 24px;
+    border-radius: 50px; font-size: 0.9rem; font-weight: 700;
+    z-index: 500; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .empty-row td { text-align: center; color: var(--muted); padding: 2rem; font-style: italic; }
+
+  /* INVITE SECTION */
+  .invite-row { display: flex; gap: 10px; align-items: flex-end; }
+  .invite-row .form-group { flex: 1; margin-bottom: 0; }
+  .invite-row .add-btn { flex-shrink: 0; padding: 10px 18px; border-radius: 10px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginView" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <span>📚</span>
+      <h1>Dongeng Kita</h1>
+      <p>Panel Admin — Masuk untuk mengelola cerita</p>
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="admin@email.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Masuk →</button>
+    <p class="err-msg" id="loginErr"></p>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-logo">📚 Admin Panel</div>
+    <div class="topbar-user">
+      <span>Halo, <strong id="userEmail">—</strong></span>
+      <button class="logout-btn" onclick="doLogout()">Keluar</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card"><div class="ico">📖</div><div class="num" id="statTotal">—</div><div class="lbl">Total Cerita</div></div>
+      <div class="stat-card"><div class="ico">📁</div><div class="num" id="statWithFile">—</div><div class="lbl">Punya File HTML</div></div>
+      <div class="stat-card"><div class="ico">🗂️</div><div class="num" id="statCats">—</div><div class="lbl">Kategori Aktif</div></div>
+      <div class="stat-card"><div class="ico">👥</div><div class="num" id="statUsers">—</div><div class="lbl">Admin/Editor</div></div>
+    </div>
+
+    <!-- Stories Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">📖 Daftar Cerita</div>
+        <button class="add-btn" onclick="openAddModal()">+ Tambah Cerita</button>
+      </div>
+      <div class="panel-body" style="padding:0; overflow-x:auto;">
+        <table class="story-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Judul</th>
+              <th>Kategori</th>
+              <th>Usia</th>
+              <th>File</th>
+              <th>Ditambah</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="storyTbody">
+            <tr class="empty-row"><td colspan="7">Memuat cerita...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Users Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">👥 Pengelola Konten</div>
+      </div>
+      <div class="panel-body">
+        <div class="invite-row" style="margin-bottom:1.25rem;">
+          <div class="form-group">
+            <label>Undang Admin/Editor Baru (kirim magic link)</label>
+            <input type="email" id="inviteEmail" placeholder="email@contoh.com">
+          </div>
+          <button class="add-btn" onclick="inviteUser()">Kirim Undangan</button>
+        </div>
+        <table class="user-table">
+          <thead>
+            <tr><th>Email</th><th>Status</th><th>Bergabung</th></tr>
+          </thead>
+          <tbody id="userTbody">
+            <tr><td colspan="3" style="text-align:center;color:var(--muted);padding:1.5rem;font-style:italic;">Memuat data...</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:0.8rem;color:var(--muted);margin-top:1rem;">💡 Setelah diundang, pengguna menerima link login ke emailnya. Hapus akses melalui Supabase Dashboard → Authentication.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT STORY MODAL -->
+<div class="overlay" id="storyOverlay" onclick="if(event.target===this)closeStoryModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2 id="modalTitle">✨ Tambah Cerita</h2>
+      <button class="modal-close" onclick="closeStoryModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group">
+        <label>Judul Cerita</label>
+        <input type="text" id="fTitle" placeholder="Contoh: Si Kancil dan Buaya" maxlength="80">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Kategori</label>
+          <select id="fCategory">
+            <option value="dongeng">🏰 Dongeng</option>
+            <option value="fabel">🦁 Fabel</option>
+            <option value="petualangan">🗺️ Petualangan</option>
+            <option value="islami">🌙 Islami</option>
+            <option value="sains">🔬 Sains</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Usia Pembaca</label>
+          <select id="fAge">
+            <option value="3-5 tahun">3–5 tahun</option>
+            <option value="6-8 tahun">6–8 tahun</option>
+            <option value="9-12 tahun">9–12 tahun</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Sinopsis Singkat</label>
+        <textarea id="fDesc" placeholder="Cerita tentang apa..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Pilih Ikon Cover</label>
+        <div class="emoji-picker" id="emojiPicker"></div>
+      </div>
+      <div class="form-group">
+        <label>Upload File Cerita (.html)</label>
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+          <div class="uico">📄</div>
+          <p><strong>Klik untuk pilih file</strong> atau seret ke sini</p>
+          <p>Format: .html</p>
+          <div class="file-nm" id="fileNameLbl"></div>
+        </div>
+        <input type="file" id="fileInput" accept=".html,.htm" style="display:none" onchange="handleFile(this)">
+      </div>
+      <button class="submit-btn" id="submitBtn" onclick="saveStory()">🎉 Simpan Cerita</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =============================================
+// GANTI DENGAN KREDENSIAL SUPABASE KAMU
+// =============================================
+const SUPABASE_URL = 'https://wtbbcupwrbmxxadrkciy.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_x05GjY3C6ra5lmxSgSlUHw_VWsB4zWl';
+// =============================================
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let selectedEmoji = '🌟';
+let uploadedFile = null;
+let editingId = null;
+
+// Init emoji picker
+const EMOJIS = ['🦁','🐰','🐻','🦊','🐸','🦋','🐉','🌈','🏰','🚀','🌟','🎠','🧸','🌺','🦄','🐬'];
+function buildEmojiPicker(current) {
+  selectedEmoji = current || '🌟';
+  const p = document.getElementById('emojiPicker');
+  p.innerHTML = '';
+  EMOJIS.forEach(e => {
+    const d = document.createElement('div');
+    d.className = 'emoji-opt' + (e === selectedEmoji ? ' picked' : '');
+    d.textContent = e;
+    d.onclick = () => { selectedEmoji = e; document.querySelectorAll('.emoji-opt').forEach(x => x.classList.remove('picked')); d.classList.add('picked'); };
+    p.appendChild(d);
+  });
+}
+buildEmojiPicker('🌟');
+
+// Drag & drop
+const ua = document.getElementById('uploadArea');
+ua.addEventListener('dragover', e => { e.preventDefault(); ua.classList.add('dragover'); });
+ua.addEventListener('dragleave', () => ua.classList.remove('dragover'));
+ua.addEventListener('drop', e => { e.preventDefault(); ua.classList.remove('dragover'); if(e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+function handleFile(input) { if(input.files[0]) setFile(input.files[0]); }
+function setFile(f) { uploadedFile = f; document.getElementById('fileNameLbl').textContent = '✅ ' + f.name; }
+
+function toast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// AUTH
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const btn = document.getElementById('loginBtn');
+  document.getElementById('loginErr').textContent = '';
+  btn.disabled = true; btn.textContent = 'Masuk...';
+
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  btn.disabled = false; btn.textContent = 'Masuk →';
+  if (error) { document.getElementById('loginErr').textContent = '❌ ' + (error.message === 'Invalid login credentials' ? 'Email atau password salah.' : error.message); return; }
+  showDashboard();
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('loginView').style.display = 'flex';
+}
+
+async function showDashboard() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return;
+  document.getElementById('loginView').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('userEmail').textContent = user.email;
+  loadStories();
+  loadUsers();
+}
+
+// Check session on load
+sb.auth.onAuthStateChange((event, session) => {
+  if (session) showDashboard();
+});
+
+// STORIES
+async function loadStories() {
+  const { data, error } = await sb.from('stories').select('*').order('created_at', { ascending: false });
+  if (error) { toast('❌ Gagal memuat cerita'); return; }
+
+  const tbody = document.getElementById('storyTbody');
+  const withFile = (data||[]).filter(s => s.file_path).length;
+  const cats = new Set((data||[]).map(s => s.category)).size;
+  document.getElementById('statTotal').textContent = (data||[]).length;
+  document.getElementById('statWithFile').textContent = withFile;
+  document.getElementById('statCats').textContent = cats;
+
+  if (!data || data.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Belum ada cerita. Tambahkan yang pertama!</td></tr>';
+    return;
+  }
+
+  const catColors = {dongeng:'#EEEDFE',fabel:'#E1F5EE',petualangan:'#FFF9E0',islami:'#E8F5FF',sains:'#FFF3E0'};
+  const catText = {dongeng:'#3C3489',fabel:'#085041',petualangan:'#633806',islami:'#0C447C',sains:'#3B6D11'};
+
+  tbody.innerHTML = data.map(s => `
+    <tr>
+      <td class="cover-cell">${s.emoji || '📖'}</td>
+      <td><strong>${s.title}</strong></td>
+      <td><span class="badge-cat" style="background:${catColors[s.category]||'#eee'};color:${catText[s.category]||'#333'}">${s.category}</span></td>
+      <td style="font-size:0.82rem;color:var(--muted)">${s.age_range||'—'}</td>
+      <td><span class="file-pill ${s.file_path?'has-file':'no-file'}">${s.file_path?'✅ Ada':'⚠️ Belum'}</span></td>
+      <td style="font-size:0.8rem;color:var(--muted)">${new Date(s.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})}</td>
+      <td>
+        <div class="action-btns">
+          <button class="btn-edit" onclick="openEditModal(${JSON.stringify(s).replace(/"/g,'&quot;')})">✏️ Edit</button>
+          <button class="btn-del" onclick="deleteStory('${s.id}','${s.file_path||''}')">🗑️ Hapus</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// USERS
+async function loadUsers() {
+  const { data: { users }, error } = await sb.auth.admin.listUsers().catch(() => ({data:{users:null},error:true}));
+  if (error || !users) {
+    document.getElementById('userTbody').innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:1.5rem;font-size:0.85rem;">Daftar pengguna hanya tersedia di Supabase Dashboard → Authentication → Users</td></tr>';
+    document.getElementById('statUsers').textContent = '—';
+    return;
+  }
+  document.getElementById('statUsers').textContent = users.length;
+  document.getElementById('userTbody').innerHTML = users.map(u => `
+    <tr>
+      <td>${u.email}</td>
+      <td><span class="role-badge role-admin">Admin</span></td>
+      <td style="font-size:0.82rem;color:var(--muted)">${new Date(u.created_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})}</td>
+    </tr>
+  `).join('');
+}
+
+async function inviteUser() {
+  const email = document.getElementById('inviteEmail').value.trim();
+  if (!email) { toast('❌ Masukkan email dulu'); return; }
+  const { error } = await sb.auth.admin.inviteUserByEmail(email).catch(e => ({error:e}));
+  if (error) {
+    toast('📧 Kirim undangan melalui Supabase Dashboard → Authentication → Invite user');
+  } else {
+    toast('✅ Undangan terkirim ke ' + email);
+    document.getElementById('inviteEmail').value = '';
+  }
+}
+
+// MODALS
+function openAddModal() {
+  editingId = null; uploadedFile = null;
+  document.getElementById('modalTitle').textContent = '✨ Tambah Cerita';
+  document.getElementById('fTitle').value = '';
+  document.getElementById('fDesc').value = '';
+  document.getElementById('fCategory').value = 'dongeng';
+  document.getElementById('fAge').value = '6-8 tahun';
+  document.getElementById('fileNameLbl').textContent = '';
+  document.getElementById('fileInput').value = '';
+  buildEmojiPicker('🌟');
+  document.getElementById('storyOverlay').classList.add('open');
+}
+
+function openEditModal(s) {
+  editingId = s.id; uploadedFile = null;
+  document.getElementById('modalTitle').textContent = '✏️ Edit Cerita';
+  document.getElementById('fTitle').value = s.title;
+  document.getElementById('fDesc').value = s.description || '';
+  document.getElementById('fCategory').value = s.category;
+  document.getElementById('fAge').value = s.age_range || '6-8 tahun';
+  document.getElementById('fileNameLbl').textContent = s.file_path ? '📄 File lama: ' + s.file_path.split('/').pop() : '';
+  document.getElementById('fileInput').value = '';
+  buildEmojiPicker(s.emoji || '🌟');
+  document.getElementById('storyOverlay').classList.add('open');
+}
+
+function closeStoryModal() { document.getElementById('storyOverlay').classList.remove('open'); }
+
+async function saveStory() {
+  const title = document.getElementById('fTitle').value.trim();
+  if (!title) { toast('❌ Judul wajib diisi!'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+  let filePath = null;
+
+  // Upload file jika ada
+  if (uploadedFile) {
+    const ext = uploadedFile.name.split('.').pop();
+    const fname = `${Date.now()}_${title.replace(/\s+/g,'-').toLowerCase()}.${ext}`;
+    const { error: upErr } = await sb.storage.from('stories').upload(fname, uploadedFile, { contentType: 'text/html', upsert: true });
+    if (upErr) { toast('❌ Gagal upload file: ' + upErr.message); btn.disabled = false; btn.textContent = '🎉 Simpan Cerita'; return; }
+    filePath = fname;
+  }
+
+  const payload = {
+    title,
+    description: document.getElementById('fDesc').value.trim(),
+    category: document.getElementById('fCategory').value,
+    age_range: document.getElementById('fAge').value,
+    emoji: selectedEmoji,
+    ...(filePath ? { file_path: filePath } : {})
+  };
+
+  let error;
+  if (editingId) {
+    ({ error } = await sb.from('stories').update(payload).eq('id', editingId));
+  } else {
+    ({ error } = await sb.from('stories').insert([payload]));
+  }
+
+  btn.disabled = false; btn.textContent = '🎉 Simpan Cerita';
+  if (error) { toast('❌ Gagal menyimpan: ' + error.message); return; }
+  toast('✅ Cerita berhasil disimpan!');
+  closeStoryModal();
+  loadStories();
+}
+
+async function deleteStory(id, filePath) {
+  if (!confirm('Hapus cerita ini? Tindakan ini tidak bisa dibatalkan.')) return;
+  if (filePath) await sb.storage.from('stories').remove([filePath]);
+  const { error } = await sb.from('stories').delete().eq('id', id);
+  if (error) { toast('❌ Gagal menghapus'); return; }
+  toast('🗑️ Cerita dihapus');
+  loadStories();
+}
+</script>
+</body>
+</html>
