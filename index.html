@@ -302,10 +302,18 @@ function filterStories() { renderGrid(); }
 async function openReader(id, title, emoji, filePath, desc) {
   document.getElementById('readerTitle').textContent = emoji + ' ' + title;
   const frame = document.getElementById('readerFrame');
+  document.getElementById('readerOverlay').classList.add('open');
+  frame.srcdoc = '<div style="font-family:sans-serif;text-align:center;padding:4rem;color:#7C6A9E;">⏳ Memuat cerita...</div>';
 
   if (filePath) {
-    const { data } = sb.storage.from('stories').getPublicUrl(filePath);
-    frame.src = data.publicUrl;
+    try {
+      const { data } = sb.storage.from('stories').getPublicUrl(filePath);
+      const res = await fetch(data.publicUrl);
+      const html = await res.text();
+      frame.srcdoc = html;
+    } catch(e) {
+      frame.srcdoc = '<div style="font-family:sans-serif;text-align:center;padding:4rem;color:#FF6B6B;">❌ Gagal memuat cerita. Coba lagi.</div>';
+    }
   } else {
     frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>body{font-family:Nunito,sans-serif;max-width:680px;margin:0 auto;padding:2rem;background:#FFF9F0;color:#2D1B69;line-height:1.8;}
@@ -316,7 +324,6 @@ async function openReader(id, title, emoji, filePath, desc) {
     <div class="note">📌 File HTML cerita belum diupload untuk cerita ini.</div>
     </body></html>`;
   }
-  document.getElementById('readerOverlay').classList.add('open');
 }
 
 function closeReader() {
