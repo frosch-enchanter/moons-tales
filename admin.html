@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Dongeng Kita</title>
+<title>Admin — Dongeng Boscil</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -188,6 +188,23 @@
   .toast.show { opacity: 1; }
   .empty-row td { text-align: center; color: var(--muted); padding: 2rem; font-style: italic; }
 
+  /* DRAG & DROP */
+  .drag-handle {
+    cursor: grab; color: var(--muted); font-size: 1.2rem;
+    padding: 0 8px; user-select: none; text-align: center; width: 36px;
+  }
+  .drag-handle:active { cursor: grabbing; }
+  tr.dragging { opacity: 0.35; background: #F0EEFF; }
+  tr.drag-over td { border-top: 2.5px solid #7F77DD !important; }
+  .save-order-btn {
+    display: none; background: #6BCB77; color: #fff; border: none;
+    border-radius: 50px; padding: 7px 18px;
+    font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.85rem;
+    cursor: pointer; transition: opacity 0.2s; gap: 6px;
+  }
+  .save-order-btn.visible { display: inline-flex; align-items: center; }
+  .save-order-btn:hover { opacity: 0.85; }
+
   /* INVITE SECTION */
   .invite-row { display: flex; gap: 10px; align-items: flex-end; }
   .invite-row .form-group { flex: 1; margin-bottom: 0; }
@@ -201,7 +218,7 @@
   <div class="login-box">
     <div class="login-logo">
       <span>📚</span>
-      <h1>Dongeng Kita</h1>
+      <h1>Dongeng Boscil</h1>
       <p>Panel Admin — Masuk untuk mengelola cerita</p>
     </div>
     <div class="field">
@@ -240,12 +257,16 @@
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title">📖 Daftar Cerita</div>
-        <button class="add-btn" onclick="openAddModal()">+ Tambah Cerita</button>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button class="save-order-btn" id="saveOrderBtn" onclick="saveOrder()">💾 Simpan Urutan</button>
+          <button class="add-btn" onclick="openAddModal()">+ Tambah Cerita</button>
+        </div>
       </div>
       <div class="panel-body" style="padding:0; overflow-x:auto;">
         <table class="story-table">
           <thead>
             <tr>
+              <th style="width:36px;"></th>
               <th></th>
               <th>Judul</th>
               <th>Kategori</th>
@@ -351,8 +372,8 @@
 // =============================================
 // GANTI DENGAN KREDENSIAL SUPABASE KAMU
 // =============================================
-const SUPABASE_URL = 'https://wtbbcupwrbmxxadrkciy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_x05GjY3C6ra5lmxSgSlUHw_VWsB4zWl';
+const SUPABASE_URL = 'GANTI_DENGAN_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'GANTI_DENGAN_SUPABASE_ANON_KEY';
 // =============================================
 
 const { createClient } = supabase;
@@ -428,8 +449,10 @@ sb.auth.onAuthStateChange((event, session) => {
 });
 
 // STORIES
+let storyOrder = []; // tracks current order by id
+
 async function loadStories() {
-  const { data, error } = await sb.from('stories').select('*').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('stories').select('*').order('sort_order', { ascending: true }).order('created_at', { ascending: false });
   if (error) { toast('❌ Gagal memuat cerita'); return; }
 
   const tbody = document.getElementById('storyTbody');
@@ -439,8 +462,10 @@ async function loadStories() {
   document.getElementById('statWithFile').textContent = withFile;
   document.getElementById('statCats').textContent = cats;
 
+  storyOrder = (data||[]).map(s => s.id);
+
   if (!data || data.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Belum ada cerita. Tambahkan yang pertama!</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Belum ada cerita. Tambahkan yang pertama!</td></tr>';
     return;
   }
 
@@ -448,7 +473,8 @@ async function loadStories() {
   const catText = {dongeng:'#3C3489',fabel:'#085041',petualangan:'#633806',islami:'#0C447C',sains:'#3B6D11'};
 
   tbody.innerHTML = data.map(s => `
-    <tr>
+    <tr draggable="true" data-id="${s.id}">
+      <td class="drag-handle" title="Geser untuk ubah urutan">⠿</td>
       <td class="cover-cell">${s.emoji || '📖'}</td>
       <td><strong>${s.title}</strong></td>
       <td><span class="badge-cat" style="background:${catColors[s.category]||'#eee'};color:${catText[s.category]||'#333'}">${s.category}</span></td>
@@ -463,6 +489,71 @@ async function loadStories() {
       </td>
     </tr>
   `).join('');
+
+  initDragDrop();
+}
+
+// DRAG & DROP REORDER
+let dragSrc = null;
+
+function initDragDrop() {
+  const tbody = document.getElementById('storyTbody');
+  const rows = Array.from(tbody.querySelectorAll('tr[draggable]'));
+
+  rows.forEach(row => {
+    row.addEventListener('dragstart', e => {
+      dragSrc = row;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('dragging');
+      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+      if (row !== dragSrc) row.classList.add('drag-over');
+    });
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      if (dragSrc && dragSrc !== row) {
+        const allRows = Array.from(tbody.querySelectorAll('tr[draggable]'));
+        const srcIdx = allRows.indexOf(dragSrc);
+        const tgtIdx = allRows.indexOf(row);
+        if (srcIdx < tgtIdx) {
+          row.after(dragSrc);
+        } else {
+          row.before(dragSrc);
+        }
+        row.classList.remove('drag-over');
+        // Update storyOrder
+        storyOrder = Array.from(tbody.querySelectorAll('tr[draggable]')).map(r => r.dataset.id);
+        // Show save button
+        document.getElementById('saveOrderBtn').classList.add('visible');
+      }
+    });
+  });
+}
+
+async function saveOrder() {
+  const btn = document.getElementById('saveOrderBtn');
+  btn.textContent = '⏳ Menyimpan...';
+
+  const updates = storyOrder.map((id, idx) =>
+    sb.from('stories').update({ sort_order: idx + 1 }).eq('id', id)
+  );
+
+  try {
+    await Promise.all(updates);
+    toast('✅ Urutan cerita berhasil disimpan!');
+    btn.classList.remove('visible');
+    btn.textContent = '💾 Simpan Urutan';
+  } catch(e) {
+    toast('❌ Gagal menyimpan urutan');
+    btn.textContent = '💾 Simpan Urutan';
+  }
 }
 
 // USERS
