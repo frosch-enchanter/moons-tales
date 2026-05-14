@@ -236,6 +236,7 @@ async function loadStories() {
   const { data, error } = await sb
     .from('stories')
     .select('*')
+    .order('sort_order', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false });
 
   if (error) {
